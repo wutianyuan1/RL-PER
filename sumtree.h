@@ -15,24 +15,24 @@ public:
         return tree[0];
     }
 
-    void add(double p, DataType data_elem) {
+    inline void add(double p, DataType data_elem) {
         int idx = write_count + capacity - 1;
         data[write_count] = data_elem;
         update(idx, p);
         write_count++;
-        if (write_count >= capacity)
+        if (write_count >= (int)capacity)
             write_count = 0;
-        if (n_entries < capacity)
+        if (n_entries < (int)capacity)
             n_entries++;
     }
 
-    void update(int idx, double p) {
+    inline void update(int idx, double p) {
         double change = p - tree[idx];
         tree[idx] = p;
         propagate(idx, change);
     }
 
-    auto get(double s) {
+    inline auto get(double s) {
         int idx = retrieve(0, s);
         size_t data_idx = idx - capacity + 1;
         return std::make_tuple(idx, tree[idx], data[data_idx]);
@@ -53,7 +53,7 @@ private:
     int retrieve(int idx, double s) {
         int left = 2*idx + 1;
         int right = left + 1;
-        if (left >= tree.size())
+        if (left >= (int)tree.size())
             return idx;
         if (s <= tree[left])
             return retrieve(left, s);

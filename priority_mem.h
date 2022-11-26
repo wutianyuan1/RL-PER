@@ -1,17 +1,22 @@
 #include <sumtree.h>
+#include <linear_schedule.h>
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
 #include <random>
 #include <iostream>
+#include <omp.h>
 
 
 template <typename DataType>
-class PriorityMemory {
+class PrioritizedMemory {
 public:
-    PriorityMemory(size_t capacity_, double alpha_=0.6, double beta_=0.4, double err_=0.01)
+    PrioritizedMemory(size_t capacity_, double alpha_=0.6, LinearSchedule beta_=LinearSchedule(20000, 0.4, 1.0), double err_=0.01)
     : err(err_), alpha(alpha_), beta(beta_), capacity(capacity_), tree(capacity),
-    generater(rand_dev()) {} 
+    generater(rand_dev()) {
+        omp_set_num_threads(2);
+    } 
 
     void add(double error, DataType sample) {
         tree.add(error, sample);
@@ -22,7 +27,8 @@ public:
         std::vector<int> idxs(batch_size);
         double segment = tree.total() / (double)batch_size;
         std::vector<double> priorities(batch_size);
-        beta = std::min(1.0, beta + 0.001);
+        double beta_val = beta.next();
+        #pragma omp parallel for schedule(static, 64)
         for (int i = 0; i < batch_size; i++) {
             double a = segment * (double)i, b = segment * ((double)i + 1.0);
             std::uniform_real_distribution<double> uniform_dist(a, b);
@@ -32,12 +38,15 @@ public:
             batch[i] = data_elem;
             idxs[i] = idx;
         }
+
         for (int i = 0; i < batch_size; i++)
             priorities[i] /= tree.total();
         std::vector<double> is_weight(batch_size);
+
         for (int i = 0; i < batch_size; i++)
-            is_weight[i] = std::pow(tree.nentries() * priorities[i], -beta);
+            is_weight[i] = std::pow(tree.nentries() * priorities[i], -beta_val);
         double max_elem = *std::max_element(is_weight.begin(), is_weight.end());
+
         for (int i = 0; i < batch_size; i++)
             is_weight[i] /= max_elem;
         return std::make_tuple(batch, idxs, is_weight);
@@ -57,7 +66,8 @@ private:
     }
 
 private:
-    double err, alpha, beta;
+    double err, alpha;
+    LinearSchedule beta;
     size_t capacity;
     SumTree<DataType> tree;
     std::random_device rand_dev;

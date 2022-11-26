@@ -7,6 +7,10 @@ ext_modules = [
         "per_memory",
         ["per_interface.cpp"],
         include_dirs=["./"],
+        cxx_std="17",
+        extra_compile_args=["-O3", "-march=native", "-fopenmp", "-funroll-loops"],
+        extra_link_args =["-fopenmp"],
+        package_data={'my_package': ['per_memory.pyi']},
     ),
 ]
 
